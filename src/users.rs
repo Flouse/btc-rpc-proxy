@@ -338,6 +338,7 @@ mod tests {
                 password: "secret".try_into().expect("failed to create password"),
                 allowed_calls: HashSet::new(),
                 fetch_blocks: input,
+                override_wallet: None,
             },
         );
 
