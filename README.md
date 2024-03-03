@@ -9,9 +9,9 @@ Via `docker-compose`
 ```yaml
 version: "3"
 services:
-  rpc-proxy:
-    container_name: rpc-proxy
-    image: dobtc/btc-rpc-proxy
+  btc-rpc-proxy:
+    container_name: btc-rpc-proxy
+    build: .
     ports:
       - 8331:8331
     volumes:
