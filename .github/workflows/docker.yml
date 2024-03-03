@@ -1,0 +1,99 @@
+name: Docker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["develop"]
+    tags:
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  docker-build-push:
+    runs-on: ubuntu-22.04
+    permissions:
+      # TODO: Maybe the action.write permission is not required.
+      # actions: write
+      packages: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3007,DL3008,DL3059
+          failure-threshold: warning
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          context: git
+          images: ghcr.io/${{ github.repository }}
+          flavor: |
+            latest=auto
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=branch,suffix=-{{date 'YYYYMMDDHHmm'}}
+            type=sha,enable=true,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=btc-rpc-proxy
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          provenance: false
+          platforms: linux/amd64, linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          build-args: |
+            RUST_RELEASE_MODE=release
+            CARGO_BUILD_FEATURES=default
+
+      # TODO:
+      # - name: Create a release
+      #   uses: action-pack/github-release@v2
+      #   with:
+      #     tag: "v${{ steps.meta.outputs.version }}"
+      #     title: "v${{ steps.meta.outputs.version }}"
+      #     token: ${{ secrets.REPO_ACCESS_TOKEN }}
+
+      # - name: Increment version variable
+      #   uses: action-pack/bump@v2
+      #   with:
+      #     token: ${{ secrets.REPO_ACCESS_TOKEN }}
+
+      # - name: Send mail
+      #   uses: action-pack/send-mail@v1
+      #   with:
+      #     to: ${{secrets.MAILTO}}
+      #     from: Github Actions <${{secrets.MAILTO}}>
+      #     connection_url: ${{secrets.MAIL_CONNECTION}}
+      #     subject: Build of ${{ github.event.repository.name }} v${{ steps.meta.outputs.version }} completed
+      #     body: |
+      #       The build job of ${{ github.event.repository.name }} v${{ steps.meta.outputs.version }} was completed successfully! 
+            
+      #       See https://github.com/${{ github.repository }}/actions for more information.
