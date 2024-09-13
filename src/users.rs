@@ -16,9 +16,6 @@ use crate::fetch_blocks::fetch_block;
 use crate::rpc_methods::{GetBlock, GetBlockHeader, GetBlockHeaderParams, GetBlockResult};
 use crate::state::State;
 
-#[cfg(feature = "old_rust")]
-use crate::util::old_rust::StrCompat;
-
 pub use password::Password;
 
 pub mod input {
@@ -333,15 +330,12 @@ mod tests {
 
     fn check(input: Option<bool>, default: bool, expected: bool) {
         let mut users = HashMap::new();
-        users.insert(
-            "satoshi".to_owned(),
-            super::input::User {
-                password: "secret".try_into().expect("failed to create password"),
-                allowed_calls: HashSet::new(),
-                fetch_blocks: input,
-                override_wallet: None,
-            },
-        );
+        users.insert("satoshi".to_owned(), super::input::User {
+            password: "secret".try_into().expect("failed to create password"),
+            allowed_calls: HashSet::new(),
+            fetch_blocks: input,
+            override_wallet: None,
+        });
 
         let result = super::input::map_default(users, default);
         assert_eq!(result.0["satoshi"].fetch_blocks, expected);
